@@ -1,0 +1,7 @@
+                  id                  |                 email                 | firstName |   lastName   |   phoneNumber   |  role  | isVerified | isActive | hourlyRate | experience | address 
+--------------------------------------+---------------------------------------+-----------+--------------+-----------------+--------+------------+----------+------------+------------+---------
+ 95163dcc-e376-4ce4-8ae1-bd870626f757 | rarnoux-prost@copernicus-it.solutions | Renaud    | Arnoux-Prost | 0771620164      | MAID   | f          | t        |            |            | 
+ 7c5de8a9-f721-4813-8167-ca2309882f00 | tom.john@gmail.com                    | Tom       | John         | 9404526288      | CLIENT | f          | t        |            |            | 
+ dd18f17c-06fa-4bb0-87b2-f95c0e3f5546 | tom.john@copernicus-it.solutions      | Tom       | John         | +1 239-463-3257‎ | CLIENT | f          | t        |            |            | 
+(3 rows)
+
