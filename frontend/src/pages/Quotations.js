@@ -34,10 +34,12 @@ const Quotations = () => {
   const [selectedQuotation, setSelectedQuotation] = useState(null);
   const [showQuotationDialog, setShowQuotationDialog] = useState(false);
   const [showMaidSelection, setShowMaidSelection] = useState(false);
+  const [serviceCatalog, setServiceCatalog] = useState([]);
 
   useEffect(() => {
     if (user) {
       fetchQuotations();
+      fetchServiceCatalog();
     }
   }, [user]);
 
@@ -53,6 +55,23 @@ const Quotations = () => {
         throw new Error(data.error || 'Failed to fetch quotations');
       }
       setQuotations(data);
+    } catch (error) {
+      setError(error.message);
+    }
+  };
+
+  const fetchServiceCatalog = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/service-catalog`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch service catalog');
+      }
+      setServiceCatalog(data);
     } catch (error) {
       setError(error.message);
     }
@@ -186,7 +205,7 @@ const Quotations = () => {
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
                         <Typography variant="h6">
-                          {quotation.serviceType.replace(/_/g, ' ')}
+                          {(quotation.serviceCatalogIds || []).map(id => (serviceCatalog.find(s => s.id === id)?.name)).filter(Boolean).join(', ')}
                         </Typography>
                         <Chip
                           label={quotation.status}
@@ -205,9 +224,6 @@ const Quotations = () => {
                       </Typography>
                       <Typography variant="h6" color="primary" gutterBottom>
                         ${quotation.estimatedPrice}
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        Valid until: {formatDate(quotation.validUntil)}
                       </Typography>
                     </CardContent>
                     <CardActions>
@@ -228,30 +244,13 @@ const Quotations = () => {
 
         {!user && (
           <Grid item xs={12}>
-            <Paper sx={{ p: 3, textAlign: 'center' }}>
-              <Typography variant="h6" gutterBottom>
-                Want to manage your quotes?
+            <Paper sx={{ p: 3, textAlign: 'center', background: 'linear-gradient(90deg, #f3e7e9 0%, #e3eeff 100%)' }}>
+              <Typography variant="h5" gutterBottom color="primary">
+                Experience hassle-free cleaning with trusted professionals
               </Typography>
               <Typography variant="body1" paragraph>
-                Create an account or log in to view and manage your cleaning service quotes.
+                Get your instant quote and see why so many choose 5 Fairies Cleaning Services for their home and office cleaning needs. Enjoy top-rated service, transparent pricing, and satisfaction guaranteed!
               </Typography>
-              <Box sx={{ mt: 2 }}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={() => navigate('/register', { state: { role: 'CLIENT' } })}
-                  sx={{ mr: 2 }}
-                >
-                  Create Account
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  onClick={() => navigate('/login')}
-                >
-                  Log In
-                </Button>
-              </Box>
             </Paper>
           </Grid>
         )}
@@ -282,7 +281,7 @@ const Quotations = () => {
                     Service Details
                   </Typography>
                   <Typography variant="body2" gutterBottom>
-                    Type: {selectedQuotation.serviceType.replace(/_/g, ' ')}
+                    Type: {(selectedQuotation.serviceCatalogIds || []).map(id => (serviceCatalog.find(s => s.id === id)?.name)).filter(Boolean).join(', ')}
                   </Typography>
                   <Typography variant="body2" gutterBottom>
                     Property: {selectedQuotation.propertyType}
@@ -306,9 +305,6 @@ const Quotations = () => {
                   </Typography>
                   <Typography variant="h6" color="primary" gutterBottom>
                     ${selectedQuotation.estimatedPrice}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary" gutterBottom>
-                    Valid until: {formatDate(selectedQuotation.validUntil)}
                   </Typography>
                 </Grid>
                 {selectedQuotation.specialRequirements && (

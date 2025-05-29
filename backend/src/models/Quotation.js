@@ -1,11 +1,13 @@
+'use strict';
 const { Model } = require('sequelize');
+const { v4: uuidv4 } = require('uuid');
 
 module.exports = (sequelize, DataTypes) => {
   class Quotation extends Model {
     static associate(models) {
       // associations can be defined here
-      Quotation.belongsTo(models.User, { foreignKey: 'clientId', as: 'client' });
-      Quotation.belongsTo(models.User, { foreignKey: 'maidId', as: 'maid' });
+      Quotation.belongsTo(models.User, { foreignKey: 'customerId', as: 'customer' });
+
     }
   }
 
@@ -15,35 +17,18 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true
     },
-    clientId: {
+    customerId: {
       type: DataTypes.UUID,
       allowNull: true,
+      defaultValue: () => uuidv4(), // Generate a temporary UUID if no user
       references: {
         model: 'users',
         key: 'id'
       }
     },
-    maidId: {
-      type: DataTypes.UUID,
-      allowNull: true,
-      references: {
-        model: 'users',
-        key: 'id'
-      }
-    },
-    serviceType: {
-      type: DataTypes.ARRAY(DataTypes.ENUM(
-        'GENERAL_CLEANING',
-        'DEEP_CLEANING',
-        'MOVE_IN_OUT',
-        'POST_CONSTRUCTION',
-        'WINDOW_CLEANING',
-        'POOL_CLEANING',
-        'EXTERIOR_CLEANING',
-        'APPLIANCE_CLEANING',
-        'MAID_SERVICE'
-      )),
-      allowNull: false
+    serviceCatalogIds: {
+      type: DataTypes.ARRAY(DataTypes.UUID),
+      allowNull: true
     },
     propertyType: {
       type: DataTypes.ENUM(
@@ -53,32 +38,20 @@ module.exports = (sequelize, DataTypes) => {
         'OFFICE',
         'OTHER'
       ),
-      allowNull: false
+      allowNull: true
     },
     bedrooms: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       defaultValue: 1
     },
     bathrooms: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       defaultValue: 1
     },
     squareFootage: {
-      type: DataTypes.INTEGER,
-      allowNull: false
-    },
-    estimatedDuration: {
-      type: DataTypes.INTEGER, // in minutes
-      allowNull: false
-    },
-    estimatedPrice: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: false
-    },
-    specialRequirements: {
-      type: DataTypes.TEXT,
+      type: DataTypes.STRING,
       allowNull: true
     },
     status: {
@@ -90,23 +63,43 @@ module.exports = (sequelize, DataTypes) => {
       ),
       defaultValue: 'PENDING'
     },
-    validUntil: {
-      type: DataTypes.DATE,
-      allowNull: false
-    },
-    isRecurring: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false
-    },
-    recurringPattern: {
-      type: DataTypes.JSONB,
-      allowNull: true
-    },
-    guestName: {
+    customerName: {
       type: DataTypes.STRING,
       allowNull: true
     },
-    guestEmail: {
+    customerEmail: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    price: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      comment: 'The price quoted for the service'
+    },
+    frequency: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    preferredDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      validate: {
+        isValidDate(value) {
+          if (value && isNaN(new Date(value).getTime())) {
+            throw new Error('Invalid date format');
+          }
+        }
+      }
+    },
+    preferredTime: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    specialInstructions: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    customerPhone: {
       type: DataTypes.STRING,
       allowNull: true
     }

@@ -4,9 +4,9 @@ const bcrypt = require('bcryptjs');
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
     static associate(models) {
-      // associations can be defined here
-      User.hasOne(models.MaidProfile);
-      User.hasOne(models.ClientProfile);
+      User.belongsTo(models.Role, { foreignKey: 'roleId', as: 'role' });
+      User.hasOne(models.MaidProfile, { foreignKey: 'userId', as: 'maidProfile' });
+      User.hasOne(models.ClientProfile, { foreignKey: 'userId', as: 'clientProfile' });
       User.hasMany(models.Booking, { foreignKey: 'maidId', as: 'maidBookings' });
       User.hasMany(models.Booking, { foreignKey: 'clientId', as: 'clientBookings' });
       User.hasMany(models.Review, { foreignKey: 'maidId', as: 'maidReviews' });
@@ -15,6 +15,11 @@ module.exports = (sequelize, DataTypes) => {
 
     async validatePassword(password) {
       return await bcrypt.compare(password, this.password);
+    }
+
+    async hasPermission(permission) {
+      const role = await this.getRole();
+      return role?.permissions?.[permission] === true;
     }
   }
 
@@ -48,9 +53,13 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: false
     },
-    role: {
-      type: DataTypes.ENUM('MAID', 'CLIENT'),
-      allowNull: false
+    roleId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'roles',
+        key: 'id'
+      }
     },
     isVerified: {
       type: DataTypes.BOOLEAN,
@@ -65,17 +74,20 @@ module.exports = (sequelize, DataTypes) => {
     modelName: 'User',
     tableName: 'users',
     timestamps: true,
+    defaultScope: {
+      attributes: {
+        exclude: ['password']
+      }
+    },
     hooks: {
       beforeCreate: async (user) => {
         if (user.password) {
-          const salt = await bcrypt.genSalt(10);
-          user.password = await bcrypt.hash(user.password, salt);
+          user.password = await bcrypt.hash(user.password, 10);
         }
       },
       beforeUpdate: async (user) => {
         if (user.changed('password')) {
-          const salt = await bcrypt.genSalt(10);
-          user.password = await bcrypt.hash(user.password, salt);
+          user.password = await bcrypt.hash(user.password, 10);
         }
       }
     }

@@ -7,7 +7,10 @@ const { auth, authorize } = require('../middleware/auth');
 router.post('/', quotationController.requestQuotation);
 
 // Admin-only: Get all pending quotations
-router.get('/admin/pending', auth, authorize('admin'), quotationController.getAllPendingQuotations);
+router.get('/admin/pending', auth, authorize('ADMIN'), quotationController.getAllPendingQuotations);
+
+// PATCH update a quotation by ID (public, for guests and users)
+router.patch('/:id', quotationController.updateQuotation);
 
 // All other routes require authentication
 router.use(auth);

@@ -9,16 +9,6 @@ import EventIcon from '@mui/icons-material/Event';
 
 const VAT_RATE = 0.07;
 
-const cleaningTypes = [
-  { value: 'GENERAL_CLEANING', label: 'General Cleaning' },
-  { value: 'DEEP_CLEANING', label: 'Deep Cleaning' },
-  { value: 'POST_CONSTRUCTION', label: 'Post-Construction' },
-  { value: 'MOVE_IN_OUT', label: 'Move In/Out' },
-  { value: 'OFFICE', label: 'Office/Commercial' },
-  { value: 'POOL_CLEANING', label: 'Pool Cleaning' },
-  { value: 'EXTERIOR_CLEANING', label: 'Exteriors Cleaning' },
-];
-
 const propertyTypes = [
   { value: 'HOUSE', label: 'House' },
   { value: 'APARTMENT', label: 'Apartment' },
@@ -51,7 +41,7 @@ const priceFont = {
   letterSpacing: '0.01em',
 };
 
-const EditableInvoiceQuoteCard = ({ formData, getEstimate, editable = false, onEditSection }) => {
+const EditableInvoiceQuoteCard = ({ formData, getEstimate, editable = false, onEditSection, serviceCatalog = [] }) => {
   const [displayedTotal, setDisplayedTotal] = useState(0);
   const subtotal = Number(getEstimate() || 0);
   const vat = subtotal * VAT_RATE;
@@ -61,11 +51,25 @@ const EditableInvoiceQuoteCard = ({ formData, getEstimate, editable = false, onE
   const dateStr = today.toLocaleDateString();
   // Company Info
   const company = {
-    name: 'Prime Shine',
+    name: '5 Fairies Cleaning Services',
     phone: '(786) 274-8284',
     address: '725 NE 166th St',
     city: 'Miami, Florida(FL), 33162',
   };
+  // Map serviceCatalogIds to service names by type
+  const mainServices = (formData.serviceCatalogIds || [])
+    .map(id => serviceCatalog.find(s => s.id === id))
+    .filter(s => s && s.type === 'main')
+    .map(s => s.name)
+    .join(', ');
+  const extraServices = (formData.extras || [])
+    .map(id => serviceCatalog.find(s => s.id === id))
+    .filter(s => s && s.type === 'extra')
+    .map(s => s.name)
+    .join(', ');
+
+  // Debugging output
+  console.log('EditableInvoiceQuoteCard:', { formData, serviceCatalog, mainServices, extraServices });
   return (
     <Card elevation={3} sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3, maxWidth: 500, mx: 'auto', my: 4 }}>
       {/* Header */}
@@ -91,7 +95,7 @@ const EditableInvoiceQuoteCard = ({ formData, getEstimate, editable = false, onE
                 <ListAltIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} /> Cleaning Type(s)
                 {editable && <Tooltip title="Edit"><IconButton size="small" onClick={() => onEditSection?.(0)}><EditIcon fontSize="small" /></IconButton></Tooltip>}
               </TableCell>
-              <TableCell sx={{ border: 0 }}>{formData.serviceType.map(val => cleaningTypes.find(t => t.value === val)?.label).join(', ') || '-'}</TableCell>
+              <TableCell sx={{ border: 0 }}>{mainServices || '-'}</TableCell>
             </TableRow>
             <TableRow>
               <TableCell sx={{ border: 0, pl: 0, fontWeight: 600 }}>
@@ -107,13 +111,13 @@ const EditableInvoiceQuoteCard = ({ formData, getEstimate, editable = false, onE
               </TableCell>
               <TableCell sx={{ border: 0 }}>{frequencyOptions.find(f => f.value === formData.frequency)?.label || '-'}</TableCell>
             </TableRow>
-            {formData.extras && formData.extras.length > 0 && (
+            {extraServices && (
               <TableRow>
                 <TableCell sx={{ border: 0, pl: 0, fontWeight: 600 }}>
                   <AddCircleOutlineIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} /> Extras
                   {editable && <Tooltip title="Edit"><IconButton size="small" onClick={() => onEditSection?.(3)}><EditIcon fontSize="small" /></IconButton></Tooltip>}
                 </TableCell>
-                <TableCell sx={{ border: 0 }}>{formData.extras.join(', ')}</TableCell>
+                <TableCell sx={{ border: 0 }}>{extraServices}</TableCell>
               </TableRow>
             )}
             <TableRow>

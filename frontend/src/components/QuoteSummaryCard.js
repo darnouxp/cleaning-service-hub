@@ -10,16 +10,6 @@ import EditIcon from '@mui/icons-material/Edit';
 
 const VAT_RATE = 0.07;
 
-const cleaningTypes = [
-  { value: 'GENERAL_CLEANING', label: 'General Cleaning' },
-  { value: 'DEEP_CLEANING', label: 'Deep Cleaning' },
-  { value: 'POST_CONSTRUCTION', label: 'Post-Construction' },
-  { value: 'MOVE_IN_OUT', label: 'Move In/Out' },
-  { value: 'OFFICE', label: 'Office/Commercial' },
-  { value: 'POOL_CLEANING', label: 'Pool Cleaning' },
-  { value: 'EXTERIOR_CLEANING', label: 'Exteriors Cleaning' },
-];
-
 const propertyTypes = [
   { value: 'HOUSE', label: 'House' },
   { value: 'APARTMENT', label: 'Apartment' },
@@ -52,7 +42,7 @@ const priceFont = {
   letterSpacing: '0.01em',
 };
 
-const QuoteSummaryCard = ({ formData, getEstimate, editable = false, onEditSection }) => {
+const QuoteSummaryCard = ({ formData, getEstimate, editable = false, onEditSection, serviceCatalog = [] }) => {
   const theme = useTheme();
   const [displayedTotal, setDisplayedTotal] = useState(0);
   const subtotal = Number(getEstimate() || 0);
@@ -63,6 +53,12 @@ const QuoteSummaryCard = ({ formData, getEstimate, editable = false, onEditSecti
   useEffect(() => {
     setDisplayedTotal(total);
   }, [total]);
+
+  // Map serviceCatalogIds to service names
+  const selectedServices = (formData.serviceCatalogIds || [])
+    .map(id => serviceCatalog.find(s => s.id === id)?.name)
+    .filter(Boolean)
+    .join(', ');
 
   return (
     <Card
@@ -96,7 +92,7 @@ const QuoteSummaryCard = ({ formData, getEstimate, editable = false, onEditSecti
           )}
         </Box>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1, ml: 3 }}>
-          {formData.serviceType.map(val => cleaningTypes.find(t => t.value === val)?.label).join(', ') || '-'}
+          {selectedServices || '-'}
         </Typography>
         <Box display="flex" alignItems="center" gap={1} mb={0.5}>
           <HomeWorkIcon color="action" fontSize="small" />
@@ -131,7 +127,10 @@ const QuoteSummaryCard = ({ formData, getEstimate, editable = false, onEditSecti
               )}
             </Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1, ml: 3 }}>
-              {formData.extras.join(', ')}
+              {(formData.extras || [])
+                .map(id => serviceCatalog.find(s => s.id === id)?.name)
+                .filter(Boolean)
+                .join(', ')}
             </Typography>
           </>
         )}

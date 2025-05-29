@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Paper,
@@ -34,23 +34,57 @@ import {
   Construction,
   MeetingRoom,
   LocalCarWash,
-  Shield
+  Shield,
+  Build,
+  Apartment,
+  Kitchen,
+  Microwave,
+  Window,
+  LocalLaundryService,
+  BorderBottom,
+  Toys,
+  Blinds,
+  FormatPaint,
+  AccessTime,
+  HomeWork
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import QuoteSummaryCard from './QuoteSummaryCard';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import EditableInvoiceQuoteCard from './EditableInvoiceQuoteCard';
+import { useNavigate } from 'react-router-dom';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 
-const cleaningTypes = [
-  { value: 'GENERAL_CLEANING', label: 'General Cleaning', icon: <CleaningServices fontSize="large" /> },
-  { value: 'DEEP_CLEANING', label: 'Deep Cleaning', icon: <LocalCarWash fontSize="large" /> },
-  { value: 'POST_CONSTRUCTION', label: 'Post-Construction', icon: <Construction fontSize="large" /> },
-  { value: 'MOVE_IN_OUT', label: 'Move In/Out', icon: <MeetingRoom fontSize="large" /> },
-  { value: 'OFFICE', label: 'Office/Commercial', icon: <Business fontSize="large" /> },
-  { value: 'POOL_CLEANING', label: 'Pool Cleaning', icon: <Pool fontSize="large" /> },
-  { value: 'EXTERIOR_CLEANING', label: 'Exteriors Cleaning', icon: <Deck fontSize="large" /> },
-];
+const iconMap = {
+  CleaningServices,
+  Home,
+  Business,
+  Pool,
+  Deck,
+  Construction,
+  MeetingRoom,
+  LocalCarWash,
+  Shield,
+  Build,
+  Apartment,
+  Kitchen,
+  Microwave,
+  Window,
+  LocalLaundryService,
+  BorderBottom,
+  Toys,
+  Blinds,
+  FormatPaint,
+  AccessTime,
+  HomeWork
+};
+
+const cityCode = 'MCO';
+const tenantID = 1;
 
 const propertyTypes = [
   { value: 'HOUSE', label: 'House' },
@@ -67,25 +101,12 @@ const frequencyOptions = [
   { label: 'Monthly', value: 'MONTHLY' },
 ];
 
-const extrasOptions = [
-  'Inside the Fridge',
-  'Inside the Oven',
-  'Inside Windows - 30 Min',
-  'Load of Laundry (Max 2 Loads)',
-  'Inside Cabinets',
-  'Wet Wiping Baseboards',
-  'Ceiling Fans',
-  'Wet Wipe Blinds',
-  'Walls',
-  'Home Organization (per hour)'
-];
-
 const steps = [
+  'Contact Info',
   'Type of Cleaning',
   'Property Details',
   'Frequency',
   'Extras',
-  'Contact Info',
   'Date & Time',
   'Special Requests',
   'Book',
@@ -180,10 +201,9 @@ const StripePaymentForm = ({ amount, onSuccess, onError, disabled, bookingId }) 
 const QuotationRequest = () => {
   const { user } = useAuth();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState({
-    serviceType: [],
+    serviceCatalogIds: [],
     propertyType: '',
     bedrooms: 1,
     bathrooms: 1,
@@ -194,6 +214,8 @@ const QuotationRequest = () => {
     frequency: '',
     extras: [],
     address: '',
+    zipcode: '',
+    city: '',
     email: '',
     phone: '',
     preferredDate: '',
@@ -201,8 +223,8 @@ const QuotationRequest = () => {
     specialInstructions: '',
     isRecurring: false,
     recurringPattern: null,
-    guestName: '',
-    guestEmail: '',
+    customerName: '',
+    contactInfo: '',
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -212,23 +234,114 @@ const QuotationRequest = () => {
   const [registerError, setRegisterError] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('card');
-  const [cardComplete, setCardComplete] = useState(false);
   const [booking, setBooking] = useState(false);
+  const [serviceCatalog, setServiceCatalog] = useState([]);
+  const [quotationId, setQuotationId] = useState(null);
+  const navigate = useNavigate();
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  const isPoolCleaning = Array.isArray(formData.serviceType) ? formData.serviceType.includes('POOL_CLEANING') : formData.serviceType === 'POOL_CLEANING';
-  const isExteriorCleaning = Array.isArray(formData.serviceType) ? formData.serviceType.includes('EXTERIOR_CLEANING') : formData.serviceType === 'EXTERIOR_CLEANING';
+  useEffect(() => {
+    async function fetchServices() {
+      try {
+        console.log('Fetching service catalog...');
+        const res = await fetch(`${process.env.REACT_APP_API_URL}/api/service-catalog?cityCode=${cityCode}&tenantID=${tenantID}`);
+        if (!res.ok) {
+          const text = await res.text();
+          console.error('API error:', text);
+          return;
+        }
+        const data = await res.json();
+        console.log('Service catalog data:', data);
+        setServiceCatalog(data);
+      } catch (err) {
+        console.error('Fetch error:', err);
+      }
+    }
+    fetchServices();
+  }, []);
+
+  // Split main and extra services
+  const mainServices = serviceCatalog.filter(s => s.type === 'main');
+  const extraServices = serviceCatalog.filter(s => s.type === 'extra');
+
+  const isPoolCleaning = Array.isArray(formData.serviceCatalogIds) ? formData.serviceCatalogIds.includes('POOL_CLEANING') : formData.serviceCatalogIds === 'POOL_CLEANING';
+  const isExteriorCleaning = Array.isArray(formData.serviceCatalogIds) ? formData.serviceCatalogIds.includes('EXTERIOR_CLEANING') : formData.serviceCatalogIds === 'EXTERIOR_CLEANING';
 
   // Step navigation
-  const handleNext = () => setActiveStep((prev) => prev + 1);
+  const handleNext = async () => {
+    if (activeStep === 0) {
+      // Validate only customerName, zipcode, and contactInfo
+      if (!formData.customerName || !formData.zipcode || !formData.contactInfo) {
+        setValidationErrors({
+          customerName: !formData.customerName ? 'Name is required' : undefined,
+          zipcode: !formData.zipcode ? 'Zipcode is required' : undefined,
+          contactInfo: !formData.contactInfo ? 'Contact info is required' : undefined,
+        });
+        return;
+      }
+      // Determine if contactInfo is phone or email
+      const isEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(formData.contactInfo);
+      const isPhone = /^\+?\d{7,}$/.test(formData.contactInfo.replace(/\D/g, ''));
+      let customerPhone = '';
+      let customerEmail = '';
+      if (isEmail) customerEmail = formData.contactInfo;
+      else if (isPhone) customerPhone = formData.contactInfo;
+      else {
+        setValidationErrors({ contactInfo: 'Please enter a valid phone number or email address.' });
+        return;
+      }
+      // POST to create quotation
+      try {
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/quotations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerName: formData.customerName,
+            zipcode: formData.zipcode,
+            customerPhone,
+            customerEmail,
+          })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          setError(data.error || 'Failed to create quotation');
+          return;
+        }
+        setQuotationId(data.quotation.id);
+        setActiveStep((prev) => prev + 1);
+      } catch (err) {
+        setError('Failed to create quotation');
+      }
+    } else if (quotationId) {
+      // PATCH to update quotation
+      const fieldsToUpdate = { ...formData };
+      // Remove fields that were already sent in step 1
+      delete fieldsToUpdate.customerName;
+      delete fieldsToUpdate.zipcode;
+      delete fieldsToUpdate.contactInfo;
+      try {
+        await fetch(`${process.env.REACT_APP_API_URL}/api/quotations/${quotationId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(fieldsToUpdate)
+        });
+        setActiveStep((prev) => prev + 1);
+      } catch (err) {
+        setError('Failed to update quotation');
+      }
+    } else {
+      setError('Quotation ID missing. Please start from the beginning.');
+    }
+  };
   const handleBack = () => setActiveStep((prev) => prev - 1);
 
   // Step 1: Card selection
-  const handleServiceTypeSelect = (value) => {
+  const handleServiceTypeSelect = (id) => {
     setFormData((prev) => {
-      const selected = prev.serviceType.includes(value)
-        ? prev.serviceType.filter((v) => v !== value)
-        : [...prev.serviceType, value];
-      return { ...prev, serviceType: selected };
+      const selected = prev.serviceCatalogIds.includes(id)
+        ? prev.serviceCatalogIds.filter((v) => v !== id)
+        : [...prev.serviceCatalogIds, id];
+      return { ...prev, serviceCatalogIds: selected };
     });
   };
 
@@ -236,7 +349,6 @@ const QuotationRequest = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear validation error when field is modified
     if (validationErrors[name]) {
       setValidationErrors(prev => ({
         ...prev,
@@ -250,38 +362,25 @@ const QuotationRequest = () => {
     <Box>
       <Typography variant="h6" gutterBottom>Select the type(s) of cleaning you need:</Typography>
       <Grid container spacing={2}>
-        {cleaningTypes.map((type) => (
-          <Grid item xs={6} sm={4} md={3} key={type.value}>
-            <Card
-              sx={{
-                border: formData.serviceType.includes(type.value)
-                  ? `2px solid ${theme.palette.primary.main}`
-                  : '1px solid #eee',
-                boxShadow: formData.serviceType.includes(type.value) ? 4 : 1,
-                bgcolor: formData.serviceType.includes(type.value)
-                  ? theme.palette.primary.light + '22'
-                  : 'white',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-              onClick={() => handleServiceTypeSelect(type.value)}
-            >
-              <CardActionArea sx={{ height: '100%' }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 120, px: 1 }}>
-                  {type.icon}
-                  <Typography variant="subtitle1" sx={{ mt: 1, textAlign: 'center', wordBreak: 'break-word', fontSize: { xs: '1rem', sm: '1.1rem' }, maxWidth: 110 }}>
-                    {type.label}
-                  </Typography>
-                </Box>
-              </CardActionArea>
-            </Card>
-          </Grid>
-        ))}
+        {mainServices.map(service => {
+          const Icon = iconMap[service.icon] || CleaningServices;
+          return (
+            <Grid item xs={6} sm={3} key={service.id}>
+              <Card
+                variant={formData.serviceCatalogIds.includes(service.id) ? 'outlined' : 'elevation'}
+                sx={{ border: formData.serviceCatalogIds.includes(service.id) ? '2px solid #1976d2' : undefined }}
+                onClick={() => handleServiceTypeSelect(service.id)}
+              >
+                <CardActionArea>
+                  <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <Icon fontSize="large" />
+                    <Typography>{service.name}</Typography>
+                  </CardContent>
+                </CardActionArea>
+              </Card>
+            </Grid>
+          );
+        })}
       </Grid>
     </Box>
   );
@@ -376,70 +475,31 @@ const QuotationRequest = () => {
     <Box>
       <Typography variant="h6" gutterBottom>Would you like to add any extras?</Typography>
       <Grid container spacing={2}>
-        {extrasOptions.map(extra => (
-          <Grid item xs={12} sm={6} md={4} key={extra}>
-            <Button
-              variant={formData.extras.includes(extra) ? 'contained' : 'outlined'}
-              color="primary"
-              fullWidth
-              sx={{ py: 2, fontWeight: 500, textTransform: 'none' }}
-              onClick={() => setFormData(prev => ({
-                ...prev,
-                extras: prev.extras.includes(extra)
-                  ? prev.extras.filter(e => e !== extra)
-                  : [...prev.extras, extra]
-              }))}
-            >
-              {extra}
-            </Button>
-          </Grid>
-        ))}
+        {extraServices.map(service => {
+          const Icon = iconMap[service.icon] || CleaningServices;
+          return (
+            <Grid item xs={6} sm={4} key={service.id}>
+              <Card
+                variant={formData.extras.includes(service.id) ? 'outlined' : 'elevation'}
+                sx={{ border: formData.extras.includes(service.id) ? '2px solid #1976d2' : undefined }}
+                onClick={() => handleExtrasSelect(service.id)}
+              >
+                <CardActionArea>
+                  <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <Icon fontSize="large" />
+                    <Typography>{service.name}</Typography>
+                  </CardContent>
+                </CardActionArea>
+              </Card>
+            </Grid>
+          );
+        })}
       </Grid>
     </Box>
   );
 
-  // Step 5: Address & Contact Info
+  // Step 5: Preferred Date & Time (previously Step 6)
   const renderStep5 = () => (
-    <Box>
-      <Typography variant="h6" gutterBottom>Where should we clean and how can we contact you?</Typography>
-      <Grid container spacing={2}>
-        <Grid item xs={12}>
-          {/* Placeholder for Google Autocomplete */}
-          <TextField
-            label="Address"
-            name="address"
-            value={formData.address}
-            onChange={handleChange}
-            fullWidth
-            required
-          />
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            label="Email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            fullWidth
-            required
-            type="email"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            label="Phone (optional)"
-            name="phone"
-            value={formData.phone}
-            onChange={handleChange}
-            fullWidth
-          />
-        </Grid>
-      </Grid>
-    </Box>
-  );
-
-  // Step 6: Preferred Date & Time
-  const renderStep6 = () => (
     <Box>
       <Typography variant="h6" gutterBottom>When would you like the cleaning?</Typography>
       <Grid container spacing={2}>
@@ -472,6 +532,46 @@ const QuotationRequest = () => {
     </Box>
   );
 
+  // Step 6: Address & Contact Info (previously Step 5)
+  const renderStep6 = () => (
+    <Box>
+      <Typography variant="h6" gutterBottom>Let's get started! Tell us how to contact you:</Typography>
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            label="Your Name"
+            name="customerName"
+            value={formData.customerName}
+            onChange={handleChange}
+            fullWidth
+            required
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            label="Zipcode"
+            name="zipcode"
+            value={formData.zipcode}
+            onChange={handleChange}
+            fullWidth
+            required
+          />
+        </Grid>
+        <Grid item xs={12}>
+          <TextField
+            label="Phone or Email"
+            name="contactInfo"
+            value={formData.contactInfo}
+            onChange={handleChange}
+            fullWidth
+            required
+            placeholder="Enter your phone number or email address"
+          />
+        </Grid>
+      </Grid>
+    </Box>
+  );
+
   // Step 7: Special Instructions
   const renderStep7 = () => (
     <Box>
@@ -494,11 +594,35 @@ const QuotationRequest = () => {
   // Step 8: Review & Book
   const renderStep8 = () => (
     <Box>
+      <Typography variant="h6" gutterBottom>Where should we send your cleaning team?</Typography>
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        <Grid item xs={12} sm={8}>
+          <TextField
+            label="Address"
+            name="address"
+            value={formData.address}
+            onChange={handleChange}
+            fullWidth
+            required
+          />
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <TextField
+            label="City"
+            name="city"
+            value={formData.city}
+            onChange={handleChange}
+            fullWidth
+            required
+          />
+        </Grid>
+      </Grid>
       <EditableInvoiceQuoteCard
         formData={formData}
         getEstimate={getEstimate}
         editable={true}
         onEditSection={handleEditSection}
+        serviceCatalog={serviceCatalog}
       />
       {/* Trust & Guarantee Banner */}
       <Box sx={{ my: 3, p: 2, bgcolor: 'success.lighter', borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -547,6 +671,13 @@ const QuotationRequest = () => {
     setSuccess('');
     setValidationErrors({});
 
+    // Get the final estimate
+    const estimate = getEstimate();
+    if (!estimate) {
+      setError('Unable to calculate final price');
+      return;
+    }
+
     // Prepare the data to send
     const dataToSend = {
       ...formData,
@@ -555,7 +686,8 @@ const QuotationRequest = () => {
         bathrooms: undefined,
         squareFootage: undefined
       }),
-      ...(user ? {} : { guestName: formData.guestName, guestEmail: formData.guestEmail })
+      ...(user ? {} : { customerName: formData.customerName, customerEmail: formData.customerEmail, customerPhone: formData.customerPhone }),
+      price: estimate.total // Include the final price
     };
 
     try {
@@ -589,7 +721,7 @@ const QuotationRequest = () => {
 
       setSuccess('Quotation request submitted successfully!');
       setFormData({
-        serviceType: [],
+        serviceCatalogIds: [],
         propertyType: '',
         bedrooms: 1,
         bathrooms: 1,
@@ -600,6 +732,8 @@ const QuotationRequest = () => {
         frequency: '',
         extras: [],
         address: '',
+        zipcode: '',
+        city: '',
         email: '',
         phone: '',
         preferredDate: '',
@@ -607,12 +741,12 @@ const QuotationRequest = () => {
         specialInstructions: '',
         isRecurring: false,
         recurringPattern: null,
-        guestName: '',
-        guestEmail: '',
+        customerName: '',
+        contactInfo: '',
       });
       // If guest, show registration prompt
       if (!user) setShowRegister(true);
-    } catch (error) {
+    } catch (err) {
       setError('An error occurred while submitting the quotation request');
     }
   };
@@ -626,8 +760,8 @@ const QuotationRequest = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: formData.guestName,
-          email: formData.guestEmail,
+          name: formData.customerName,
+          email: formData.customerEmail,
           password: registerPassword,
         })
       });
@@ -645,33 +779,67 @@ const QuotationRequest = () => {
 
   // Pricing estimation logic
   const getEstimate = () => {
-    const { serviceType, bedrooms, bathrooms, squareFootage, poolSize, exteriorFlooringSize, yardSize } = formData;
-    if (!serviceType || serviceType.length === 0) return null;
+    const { serviceCatalogIds, bedrooms, bathrooms, squareFootage, poolSize, exteriorFlooringSize, yardSize, extras } = formData;
+    if (!serviceCatalogIds || serviceCatalogIds.length === 0) return null;
     let estimate = 0;
-    (Array.isArray(serviceType) ? serviceType : [serviceType]).forEach(type => {
-      switch (type) {
-        case 'GENERAL_CLEANING':
-          estimate += 50 + (Number(bedrooms) || 0) * 15 + (Number(bathrooms) || 0) * 10;
+    const parseSqft = (val) => {
+      if (!val) return 0;
+      if (val.includes('-')) {
+        const [min, max] = val.split('-').map(Number);
+        return Math.round((min + max) / 2);
+      }
+      if (val.startsWith('<')) return Number(val.replace('<', ''));
+      if (val.endsWith('+')) return Number(val.replace('+', ''));
+      return Number(val);
+    };
+    (Array.isArray(serviceCatalogIds) ? serviceCatalogIds : [serviceCatalogIds]).forEach(id => {
+      const service = serviceCatalog.find(s => s.id === id);
+      if (!service) return;
+      switch (service.priceModel) {
+        case 'per_hour':
+          estimate += service.rate * Math.max(2, (Number(bedrooms) || 1) + (Number(bathrooms) || 1));
           break;
-        case 'DEEP_CLEANING':
-          estimate += 100 + (Number(bedrooms) || 0) * 20 + (Number(bathrooms) || 0) * 15;
+        case 'per_sqft':
+          estimate += service.rate * parseSqft(squareFootage);
           break;
-        case 'MOVE_IN_OUT':
-          estimate += 120 + (Number(bedrooms) || 0) * 25 + (Number(bathrooms) || 0) * 20;
+        case 'per_visit':
+          estimate += service.rate;
           break;
-        case 'POST_CONSTRUCTION':
-          estimate += 150 + (Number(squareFootage) || 0) * 0.2;
+        case 'per_load':
+          estimate += service.rate * (formData.loads ? Number(formData.loads) : 1);
           break;
-        case 'WINDOW_CLEANING':
-          estimate += 60 + (Number(squareFootage) || 0) * 0.1;
-          break;
-        case 'POOL_CLEANING':
-          estimate += 80 + (Number(poolSize) || 0) * 0.25;
-          break;
-        case 'EXTERIOR_CLEANING':
-          estimate += 90 + (Number(exteriorFlooringSize) || 0) * 0.15 + (Number(yardSize) || 0) * 0.1;
+        case 'flat':
+          estimate += service.rate;
           break;
         default:
+          estimate += service.rate;
+          break;
+      }
+    });
+    (Array.isArray(extras) ? extras : [extras]).forEach(id => {
+      const extra = serviceCatalog.find(s => s.id === id);
+      if (!extra) return;
+      switch (extra.priceModel) {
+        case 'per_hour':
+          estimate += extra.rate * 1;
+          break;
+        case 'per_sqft':
+          estimate += extra.rate * parseSqft(squareFootage);
+          break;
+        case 'per_unit':
+          estimate += extra.rate * 1;
+          break;
+        case 'per_load':
+          estimate += extra.rate * (formData.loads ? Number(formData.loads) : 1);
+          break;
+        case 'per_room':
+          estimate += extra.rate * (Number(bedrooms) || 1);
+          break;
+        case 'flat':
+          estimate += extra.rate;
+          break;
+        default:
+          estimate += extra.rate;
           break;
       }
     });
@@ -680,7 +848,7 @@ const QuotationRequest = () => {
 
   // Helper to determine if square footage should be shown
   const needsSquareFootage = () => {
-    const types = Array.isArray(formData.serviceType) ? formData.serviceType : [formData.serviceType];
+    const types = Array.isArray(formData.serviceCatalogIds) ? formData.serviceCatalogIds : [formData.serviceCatalogIds];
     return types.some(type => [
       'GENERAL_CLEANING',
       'DEEP_CLEANING',
@@ -692,7 +860,7 @@ const QuotationRequest = () => {
 
   // Helper to determine if bedrooms/bathrooms should be shown
   const needsBedroomsBathrooms = () => {
-    const types = Array.isArray(formData.serviceType) ? formData.serviceType : [formData.serviceType];
+    const types = Array.isArray(formData.serviceCatalogIds) ? formData.serviceCatalogIds : [formData.serviceCatalogIds];
     return types.some(type => [
       'GENERAL_CLEANING',
       'DEEP_CLEANING',
@@ -701,46 +869,88 @@ const QuotationRequest = () => {
     ].includes(type));
   };
 
-  const handleBook = async () => {
-    setBooking(true);
-    setError(null);
-    // 1. Always create the booking/customer in the backend
-    const dataToSend = {
-      ...formData,
-      ...(isPoolCleaning && {
-        bedrooms: undefined,
-        bathrooms: undefined,
-        squareFootage: undefined
-      }),
-      ...(user ? {} : { guestName: formData.guestName, guestEmail: formData.guestEmail })
-    };
+  // Add new function to create quotation
+  const createQuotation = async () => {
     try {
+      // Get the current estimate
+      const estimate = getEstimate();
+      if (!estimate) {
+        setError('Unable to calculate price');
+        return null;
+      }
+
+      const dataToSend = {
+        ...formData,
+        ...(isPoolCleaning && {
+          bedrooms: undefined,
+          bathrooms: undefined,
+          squareFootage: undefined
+        }),
+        ...(user ? {} : { customerName: formData.customerName, customerEmail: formData.customerEmail, customerPhone: formData.customerPhone }),
+        price: estimate.total
+      };
+
       const headers = {
         'Content-Type': 'application/json',
       };
       if (user) {
         headers['Authorization'] = `Bearer ${localStorage.getItem('token')}`;
       }
+
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/quotations`, {
         method: 'POST',
         headers,
         body: JSON.stringify(dataToSend)
       });
+
       const data = await response.json();
       if (!response.ok) {
-        setError(data.error || 'Failed to create booking');
-        setBooking(false);
-        return;
+        throw new Error(data.error || 'Failed to create quotation');
       }
-      // Optionally, store booking/quote ID for payment
-      // const bookingId = data.id;
-      // For cash, show success
-      setSuccess('Booking created! We will contact you soon.');
-      setBooking(false);
+
+      return data.quotation;
     } catch (err) {
-      setError('Failed to create booking');
+      setError('Failed to create quotation');
+      return null;
+    }
+  };
+
+  // Update handleBook to use existing quotation
+  const handleBook = async () => {
+    setBooking(true);
+    setError(null);
+    if (!formData.address || !formData.city) {
+      setError('Address and city are required.');
+      setBooking(false);
+      return;
+    }
+    try {
+      const price = getEstimate();
+      // PATCH update with all collected formData fields and price
+      await fetch(`${process.env.REACT_APP_API_URL}/api/quotations/${quotationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, price })
+      });
+      // For cash payment, show modal
+      if (paymentMethod === 'cash') {
+        setShowSuccessModal(true);
+        setBooking(false);
+      }
+      // For card payment, the success will be handled by the StripePaymentForm
+    } catch (err) {
+      setError('Failed to process booking');
       setBooking(false);
     }
+  };
+
+  const handleExtrasSelect = (id) => {
+    setFormData(prev => {
+      const selected = prev.extras.includes(id)
+        ? prev.extras.filter(e => e !== id)
+        : [...prev.extras, id];
+      return { ...prev, extras: selected };
+    });
   };
 
   return (
@@ -759,12 +969,12 @@ const QuotationRequest = () => {
               </Stepper>
 
               {/* Step Content */}
-              {activeStep === 0 && renderStep1()}
-              {activeStep === 1 && renderStep2()}
-              {activeStep === 2 && renderStep3()}
-              {activeStep === 3 && renderStep4()}
-              {activeStep === 4 && renderStep5()}
-              {activeStep === 5 && renderStep6()}
+              {activeStep === 0 && renderStep6()}
+              {activeStep === 1 && renderStep1()}
+              {activeStep === 2 && renderStep2()}
+              {activeStep === 3 && renderStep3()}
+              {activeStep === 4 && renderStep4()}
+              {activeStep === 5 && renderStep5()}
               {activeStep === 6 && renderStep7()}
               {activeStep === 7 && renderStep8()}
 
@@ -786,10 +996,17 @@ const QuotationRequest = () => {
                     color="primary"
                     sx={{ minWidth: 120 }}
                     disabled={
-                      (activeStep === 0 && formData.serviceType.length === 0) ||
-                      (activeStep === 1 && !formData.propertyType) ||
-                      (activeStep === 2 && !formData.frequency) ||
-                      (activeStep === 4 && (!formData.address || !formData.email)) ||
+                      (activeStep === 0 && (
+                        !formData.customerName ||
+                        !formData.zipcode ||
+                        !formData.contactInfo ||
+                        validationErrors.customerName ||
+                        validationErrors.zipcode ||
+                        validationErrors.contactInfo
+                      )) ||
+                      (activeStep === 1 && formData.serviceCatalogIds.length === 0) ||
+                      (activeStep === 2 && !formData.propertyType) ||
+                      (activeStep === 3 && !formData.frequency) ||
                       (activeStep === 5 && (!formData.preferredDate || !formData.preferredTime))
                     }
                   >
@@ -821,16 +1038,16 @@ const QuotationRequest = () => {
                       <Grid item xs={12} sm={6}>
                         <TextField
                           fullWidth
-                          label="Name"
-                          value={formData.guestName}
+                          label="Customer Name"
+                          value={formData.customerName}
                           disabled
                         />
                       </Grid>
                       <Grid item xs={12} sm={6}>
                         <TextField
                           fullWidth
-                          label="Email"
-                          value={formData.guestEmail}
+                          label="Customer Email"
+                          value={formData.customerEmail}
                           disabled
                         />
                       </Grid>
@@ -868,11 +1085,22 @@ const QuotationRequest = () => {
           <Grid item xs={12} md={3}>
             {/* Only show the floating quote summary card before the last step */}
             {activeStep < steps.length - 1 && (
-              <QuoteSummaryCard formData={formData} getEstimate={getEstimate} />
+              <QuoteSummaryCard formData={formData} getEstimate={getEstimate} serviceCatalog={serviceCatalog} />
             )}
           </Grid>
         </Grid>
       </Box>
+      <Dialog open={showSuccessModal} onClose={() => { setShowSuccessModal(false); navigate('/'); }}>
+        <DialogTitle>Booking created!</DialogTitle>
+        <DialogContent>
+          <Typography>Booking created! We will contact you soon.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setShowSuccessModal(false); navigate('/'); }} color="primary" autoFocus>
+            OK
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

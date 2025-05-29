@@ -30,7 +30,7 @@ const Navbar = () => {
             <Box
               component="img"
               src="/images/logo.png"
-              alt="Prime Shine Logo"
+              alt="5 Fairies Cleaning Services Logo"
               sx={{
                 height: 40,
                 marginRight: 2,
@@ -43,7 +43,7 @@ const Navbar = () => {
                 fontWeight: 700,
               }}
             >
-              Prime Shine
+              5 Fairies Cleaning Services
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 2 }}>

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { auth } = require('../middleware/auth');
+const { auth, authorize } = require('../middleware/auth');
 const { User, MaidProfile, ClientProfile } = require('../models');
 
 // Get user profile
@@ -197,6 +197,20 @@ router.get('/client/:id', auth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching client profile:', error);
     res.status(500).json({ error: 'Failed to fetch client profile' });
+  }
+});
+
+// Admin-only: Get all users
+router.get('/', auth, authorize('ADMIN'), async (req, res) => {
+  try {
+    const users = await User.findAll({
+      attributes: { exclude: ['password'] },
+      order: [['createdAt', 'DESC']]
+    });
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
   }
 });
 

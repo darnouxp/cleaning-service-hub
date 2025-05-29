@@ -1,12 +1,25 @@
 const jwt = require('jsonwebtoken');
-const { User, MaidProfile, ClientProfile } = require('../models');
+const { User, MaidProfile, ClientProfile, Role } = require('../models');
 const { validationResult } = require('express-validator');
 
 const generateToken = (user) => {
+  const expiresInEnv = process.env.JWT_EXPIRES_IN;
+  const fallbackExpiresIn = '3600s';
+
+  console.log('🔍 JWT_EXPIRES_IN from env:', expiresInEnv);
+  console.log('👤 Generating token for user ID:', user.id);
+
+  const validExpiresIn =
+    typeof expiresInEnv === 'string' && expiresInEnv.trim() !== ''
+      ? expiresInEnv
+      : fallbackExpiresIn;
+
+  console.log('⏳ Using expiresIn value:', validExpiresIn);
+
   return jwt.sign(
-    { id: user.id, role: user.role },
+    { id: user.id },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN }
+    { expiresIn: validExpiresIn }
   );
 };
 
@@ -34,6 +47,9 @@ exports.register = async (req, res) => {
       hourlyRate,
       experience,
       services,
+      serviceAreas,
+      languages,
+      otherLanguages,
       // Client-specific fields
       address,
       preferredContactMethod
@@ -55,27 +71,49 @@ exports.register = async (req, res) => {
       });
     }
 
-    const existingUser = await User.findOne({ where: { email } });
+    // Check if user exists
+    const existingUser = await User.findOne({ 
+      where: { email }
+    });
+    
     if (existingUser) {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
+    // Get the role ID
+    const roleRecord = await Role.findOne({ where: { name: role } });
+    if (!roleRecord) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    // Create user with roleId
     const user = await User.create({
       email,
       password,
       firstName,
       lastName,
       phoneNumber,
-      role
+      roleId: roleRecord.id
     });
 
-    // Create corresponding profile based on role
     if (role === 'MAID') {
+      // Process languages
+      let processedLanguages = languages || [];
+      if (otherLanguages && otherLanguages.trim()) {
+        const additionalLanguages = otherLanguages
+          .split(',')
+          .map(lang => lang.trim().toUpperCase())
+          .filter(lang => lang && !processedLanguages.includes(lang));
+        processedLanguages = [...processedLanguages, ...additionalLanguages];
+      }
+
       await MaidProfile.create({
         userId: user.id,
         hourlyRate: hourlyRate || 0,
         experience: experience || 0,
-        services: services || []
+        services: services || [],
+        serviceAreas: serviceAreas || [],
+        languages: processedLanguages
       });
     } else {
       await ClientProfile.create({
@@ -101,7 +139,10 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ 
+      where: { email },
+      include: [{ model: Role, as: 'role' }]
+    });
 
     if (!user || !(await user.validatePassword(password))) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -110,7 +151,8 @@ exports.login = async (req, res) => {
     const token = generateToken(user);
     res.json({ user, token });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Login failed' });
   }
 };
 
@@ -118,13 +160,20 @@ exports.getProfile = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {
       include: [
-        { model: MaidProfile, required: false },
-        { model: ClientProfile, required: false }
+        { model: Role, as: 'role' },
+        { model: MaidProfile, as: 'maidProfile' },
+        { model: ClientProfile, as: 'clientProfile' }
       ]
     });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     res.json(user);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Get profile error:', error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
   }
 };
 

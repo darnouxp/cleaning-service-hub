@@ -4,10 +4,9 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.createTable('clientprofiles', {
       id: {
-        allowNull: false,
-        autoIncrement: true,
-        primaryKey: true,
-        type: Sequelize.INTEGER
+        type: Sequelize.UUID,
+        defaultValue: Sequelize.literal('uuid_generate_v4()'),
+        primaryKey: true
       },
       userId: {
         type: Sequelize.UUID,
@@ -21,44 +20,41 @@ module.exports = {
       },
       address: {
         type: Sequelize.TEXT,
-        allowNull: false
+        allowNull: true
       },
-      city: {
+      phoneNumber: {
+        type: Sequelize.STRING,
+        allowNull: true
+      },
+      serviceArea: {
         type: Sequelize.STRING,
         allowNull: false
       },
-      state: {
-        type: Sequelize.STRING,
-        allowNull: false
-      },
-      zipCode: {
-        type: Sequelize.STRING,
-        allowNull: false
-      },
-      country: {
-        type: Sequelize.STRING,
-        allowNull: false
-      },
-      preferredServices: {
+      requiredServices: {
         type: Sequelize.ARRAY(Sequelize.STRING),
-        defaultValue: []
+        allowNull: false
       },
-      specialInstructions: {
-        type: Sequelize.TEXT
+      preferences: {
+        type: Sequelize.JSON,
+        allowNull: true
       },
       createdAt: {
         allowNull: false,
-        type: Sequelize.DATE
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.literal('NOW()')
       },
       updatedAt: {
         allowNull: false,
-        type: Sequelize.DATE
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.literal('NOW()')
       }
     });
 
-    // Add unique constraint for userId
-    await queryInterface.addIndex('clientprofiles', ['userId'], {
-      unique: true
+    // Add unique constraint for userId (one client profile per user)
+    await queryInterface.addConstraint('clientprofiles', {
+      fields: ['userId'],
+      type: 'unique',
+      name: 'unique_clientprofile_user'
     });
   },
 

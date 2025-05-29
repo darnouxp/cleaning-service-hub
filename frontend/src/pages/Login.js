@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
 import {
   Container,
   Paper,
@@ -18,12 +18,20 @@ const Login = () => {
   const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await login(email, password);
-      navigate('/dashboard');
+      const user = await login(email, password);
+      // Redirect based on user role
+      if (user.role === 'ADMIN') {
+        navigate('/dashboard');
+      } else {
+        // Redirect to the page they were trying to access, or home
+        const from = location.state?.from?.pathname || '/';
+        navigate(from);
+      }
     } catch (error) {
       setError(error.response?.data?.error || 'Failed to login');
     }
@@ -31,18 +39,16 @@ const Login = () => {
 
   return (
     <Container maxWidth="sm">
-      <Box sx={{ mt: 8 }}>
+      <Box sx={{ mt: 8, mb: 4 }}>
         <Paper elevation={3} sx={{ p: 4 }}>
-          <Typography component="h1" variant="h5" align="center" gutterBottom>
-            Login to House Cleaner Hub
+          <Typography component="h1" variant="h4" align="center" gutterBottom>
+            Login
           </Typography>
-
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {error}
             </Alert>
           )}
-
           <form onSubmit={handleSubmit}>
             <TextField
               margin="normal"

@@ -47,14 +47,24 @@ exports.createBooking = async (req, res) => {
 
 exports.getBookings = async (req, res) => {
   try {
-    const bookings = await Booking.findAll({
-      where: {
+    let whereClause = {};
+    if (req.user.role !== 'ADMIN') {
+      whereClause = {
         [req.user.role === 'MAID' ? 'maidId' : 'clientId']: req.user.id
-      },
+      };
+    }
+
+    const bookings = await Booking.findAll({
+      where: whereClause,
       include: [
         {
           model: User,
-          as: req.user.role === 'MAID' ? 'client' : 'maid',
+          as: 'maid',
+          attributes: ['id', 'firstName', 'lastName', 'email', 'phoneNumber']
+        },
+        {
+          model: User,
+          as: 'client',
           attributes: ['id', 'firstName', 'lastName', 'email', 'phoneNumber']
         }
       ],
@@ -62,6 +72,7 @@ exports.getBookings = async (req, res) => {
     });
     res.json(bookings);
   } catch (error) {
+    console.error('Error in getBookings:', error);
     res.status(500).json({ error: error.message });
   }
 };

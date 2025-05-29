@@ -85,15 +85,10 @@ const Home = () => {
         <Box
           component="img"
           src="/images/logo.png"
-          alt="Prime Shine Logo"
-          sx={{ height: 120, mb: 1 }}
+          alt="5 Fairies Cleaning Services Logo"
+          sx={{ height: 240, mb: 1 }}
         />
-        <Typography
-          variant="h4"
-          sx={{ color: 'primary.main', fontWeight: 700 }}
-        >
-          Prime Shine
-        </Typography>
+
       </Box>
 
       {/* Hero Section */}
@@ -203,8 +198,8 @@ const Home = () => {
               <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'left', mt: 4, mb: 2 }}>
                 <Box
                   component="img"
-                  src="/images/logo.png"
-                  alt="Prime Shine Logo"
+                  src="/images/logo.jpg"
+                  alt="5 Fairies Cleaning Services Logo"
                   sx={{ height: 120, mb: 1 }}
                 />
               </Box>       
@@ -253,7 +248,7 @@ const Home = () => {
           </Grid>
           <Box sx={{ mt: 4, textAlign: 'center' }}>
             <Typography variant="body2">
-              © {new Date().getFullYear()} Prime Shine. All rights reserved.
+              © {new Date().getFullYear()} 5 Fairies Cleaning Services. All rights reserved.
             </Typography>
           </Box>
         </Container>

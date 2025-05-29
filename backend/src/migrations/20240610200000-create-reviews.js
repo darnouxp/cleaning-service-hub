@@ -4,13 +4,12 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.createTable('reviews', {
       id: {
-        allowNull: false,
-        autoIncrement: true,
-        primaryKey: true,
-        type: Sequelize.INTEGER
+        type: Sequelize.UUID,
+        defaultValue: Sequelize.literal('uuid_generate_v4()'),
+        primaryKey: true
       },
       bookingId: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.UUID,
         allowNull: false,
         references: {
           model: 'bookings',
@@ -23,7 +22,7 @@ module.exports = {
         type: Sequelize.UUID,
         allowNull: false,
         references: {
-          model: 'users',
+          model: 'clientprofiles',
           key: 'id'
         },
         onUpdate: 'CASCADE',
@@ -33,7 +32,7 @@ module.exports = {
         type: Sequelize.UUID,
         allowNull: false,
         references: {
-          model: 'users',
+          model: 'maidprofiles',
           key: 'id'
         },
         onUpdate: 'CASCADE',
@@ -41,29 +40,23 @@ module.exports = {
       },
       rating: {
         type: Sequelize.INTEGER,
-        allowNull: false,
-        validate: {
-          min: 1,
-          max: 5
-        }
+        allowNull: false
       },
       comment: {
-        type: Sequelize.TEXT
+        type: Sequelize.TEXT,
+        allowNull: true
       },
       createdAt: {
         allowNull: false,
-        type: Sequelize.DATE
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.literal('NOW()')
       },
       updatedAt: {
         allowNull: false,
-        type: Sequelize.DATE
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.literal('NOW()')
       }
     });
-
-    // Add indexes for better query performance
-    await queryInterface.addIndex('reviews', ['bookingId']);
-    await queryInterface.addIndex('reviews', ['clientId']);
-    await queryInterface.addIndex('reviews', ['maidId']);
   },
 
   down: async (queryInterface, Sequelize) => {
